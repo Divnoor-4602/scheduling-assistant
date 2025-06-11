@@ -1,4 +1,9 @@
-import { internalMutation, query, QueryCtx } from "./_generated/server";
+import {
+  internalMutation,
+  mutation,
+  query,
+  QueryCtx,
+} from "./_generated/server";
 import { UserJSON } from "@clerk/backend";
 import { v, Validator } from "convex/values";
 
@@ -9,40 +14,13 @@ export const current = query({
   },
 });
 
-// utility function to check google calendar permissions
-function checkCalendarPermissions(userData: UserJSON): boolean {
-  const googleAccount = userData.external_accounts?.find(
-    (account) => account.provider === "oauth_google",
-  );
-
-  if (!googleAccount?.approved_scopes) {
-    return false;
-  }
-
-  const requiredScopes = [
-    "https://www.googleapis.com/auth/calendar.events",
-    "https://www.googleapis.com/auth/calendar.freebusy",
-    "https://www.googleapis.com/auth/calendar.settings.readonly",
-  ];
-
-  // Check if at least calendar.events scope is present (most important one)
-  return requiredScopes.every((scope) =>
-    googleAccount.approved_scopes.includes(scope),
-  );
-}
-
 export const upsertFromClerk = internalMutation({
   args: { data: v.any() as Validator<UserJSON> }, // no runtime validation, trust Clerk
   async handler(ctx, { data }) {
-    // check if the user has google calendar permissions
-    const hasCalendarPermissions = checkCalendarPermissions(data);
-
     const userAttributes = {
       name: `${data.first_name} ${data.last_name}`,
       clerkId: data.id,
-      onboardingStep: hasCalendarPermissions
-        ? ("workSchedule" as const)
-        : ("googleCalendar" as const),
+      onboardingStep: "googleCalendar" as const,
       onboarded: false,
       email: data.email_addresses[0].email_address,
       createdAt: Date.now(),
@@ -92,3 +70,51 @@ async function userByClerkId(ctx: QueryCtx, clerkId: string) {
     .withIndex("byClerkId", (q) => q.eq("clerkId", clerkId))
     .unique();
 }
+
+/**
+ * Update the user's work hours through a mutation
+ * @param startTime - The start time of the user's work hours
+ * @param endTime - The end time of the user's work hours
+ */
+export const updateWorkHours = mutation({
+  args: {
+    startTime: v.string(),
+    endTime: v.string(),
+  },
+  async handler(ctx, { startTime, endTime }) {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    await ctx.db.patch(user._id, {
+      workHours: {
+        startTime,
+        endTime,
+      },
+    });
+  },
+});
+
+/***
+ * Change the onboarding step of the user based on where they are in the onboarding process
+ * @param step - The step to change to
+ */
+export const changeOnboardingStep = mutation({
+  args: {
+    step: v.string(),
+  },
+  async handler(
+    ctx,
+    args: {
+      step: "googleCalendar" | "workSchedule" | "placeCall" | "complete";
+    },
+  ) {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    await ctx.db.patch(user._id, { onboardingStep: args.step });
+  },
+});

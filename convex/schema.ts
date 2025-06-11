@@ -11,9 +11,16 @@ export default defineSchema({
     name: v.string(),
     email: v.string(),
     phone: v.optional(v.string()),
+    workHours: v.optional(
+      v.object({
+        startTime: v.string(),
+        endTime: v.string(),
+      }),
+    ),
     onboardingStep: v.union(
       v.literal("googleCalendar"),
       v.literal("workSchedule"),
+      v.literal("placeCall"),
       v.literal("complete"),
     ),
     onboarded: v.optional(v.boolean()),

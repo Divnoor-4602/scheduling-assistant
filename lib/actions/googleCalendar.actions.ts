@@ -1,60 +1,69 @@
 "use server";
 
-import { clerkClient } from "@clerk/nextjs/server";
-import { google } from "googleapis";
+import { getGoogleOAuthClient, getGoogleTokenInfo } from "./google.actions";
+import type { GoogleCalendarScopeInfo } from "./types";
 
-/**
- * Gets authenticated Google OAuth2 client for user's calendar access.
- * Verifies user has required calendar scopes before creating client.
- * Returns undefined if user lacks Google connection or required calendar scopes.
- * The returned client is authenticated and ready to access **Google Calendar API**.
- */
-export async function getOAuthClient(clerkId: string) {
-  // create a clerk client
-  const client = await clerkClient();
-
-  // get the token response from clerk client
-  const tokenResponse = await client.users.getUserOauthAccessToken(
-    clerkId,
-    "google",
-  );
-
-  // see if the token is present
-  if (tokenResponse.data.length === 0 || !tokenResponse.data) {
-    // if there is no token or no length in the token
-    return;
-  }
-
-  // get the token from the response
-  const token = tokenResponse.data[0];
-
-  // check if the token has required scopes
+// Helper function to check if required calendar scopes are present
+function checkCalendarScopes(scopes: string[]): boolean {
   const requiredScopes = [
-    "email",
     "https://www.googleapis.com/auth/calendar.events",
     "https://www.googleapis.com/auth/calendar.freebusy",
   ];
 
-  // check if the token has required calendar scopes
-  const hasCalendarScopes = requiredScopes.every((scope) =>
-    token.scopes?.includes(scope),
-  );
-
-  // if the token does not have the required calendar scopes, return
-  if (!hasCalendarScopes) {
-    return;
-  }
-
-  // if the token has the required scopes and it is valid, create a google client
-  const googleClient = new google.auth.OAuth2(
-    process.env.GOOGLE_OAUTH_CLIENT_ID,
-    process.env.GOOGLE_OAUTH_CLIENT_SECRET,
-    process.env.GOOGLE_OAUTH_REDIRECT_URL,
-  );
-
-  // set the token
-  googleClient.setCredentials({ access_token: token.token });
-
-  // return the google client
-  return googleClient;
+  return requiredScopes.every((scope) => scopes.includes(scope));
 }
+
+/**
+ * Gets authenticated Google OAuth2 client specifically for calendar access.
+ * Returns undefined if user lacks Google connection.
+ * The returned client is authenticated and ready to access **Google Calendar API**.
+ */
+export async function getCalendarOAuthClient(clerkId: string) {
+  return await getGoogleOAuthClient(clerkId);
+}
+
+/**
+ * Gets Google client scopes with calendar-specific validation
+ */
+export async function getGoogleClientCalendarScopes(
+  clerkId: string,
+): Promise<GoogleCalendarScopeInfo> {
+  try {
+    console.log("Getting Google Calendar client scopes for clerkId:", clerkId);
+
+    // Get token info from the base Google actions
+    const tokenInfo = await getGoogleTokenInfo(clerkId);
+
+    if (tokenInfo.token !== "valid") {
+      return {
+        ...tokenInfo,
+        hasCalendarScopes: false,
+      };
+    }
+
+    // Add calendar-specific scope checking
+    const hasCalendarScopes = checkCalendarScopes(tokenInfo.scopes);
+
+    console.log("Has calendar scopes:", hasCalendarScopes);
+
+    return {
+      ...tokenInfo,
+      hasCalendarScopes,
+    };
+  } catch (error) {
+    console.error("Error in getGoogleClientScopes:", error);
+
+    return {
+      scopes: [],
+      hasCalendarScopes: false,
+      token: "error",
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Create the user's google account and connect it to the calendar for the plinco to access
+ *
+ */
+export async function createGoogleAccountForClient() {}
