@@ -27,18 +27,26 @@ const OnboardingModal = () => {
 
   // use effect to set the current step based on the onboarding step
   useEffect(() => {
-    // if the user has completed the onboarding process, set the current step to 1
-    if (
-      onboardingStep === "placeCall" &&
-      user?.workHours?.startTime &&
-      user?.workHours?.endTime
-    ) {
-      setCurrentStep(2);
-    } else {
-      // Otherwise, always start at step 0 to show Google Calendar step
-      setCurrentStep(0);
+    if (!onboardingStep) return; // Wait for onboardingStep to be loaded
+
+    switch (onboardingStep) {
+      case "googleCalendar":
+        setCurrentStep(0);
+        break;
+      case "workSchedule":
+        setCurrentStep(1);
+        break;
+      case "placeCall":
+        setCurrentStep(2);
+        break;
+      case "complete":
+        // User has completed onboarding, could close modal or redirect
+        setCurrentStep(2);
+        break;
+      default:
+        setCurrentStep(0);
     }
-  }, [onboardingStep, user?.workHours?.startTime, user?.workHours?.endTime]);
+  }, [onboardingStep]);
 
   // Use the custom hook for Google Calendar logic
   const {

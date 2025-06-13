@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion, AnimationProps } from "framer-motion";
 
 type CustomButtonProps = {
   text: string;
@@ -9,6 +9,7 @@ type CustomButtonProps = {
   onClick: () => void;
   className?: string;
   disabled?: boolean;
+  customAnimation?: (isHovered: boolean) => AnimationProps["animate"];
 };
 
 const CustomButton = ({
@@ -17,8 +18,12 @@ const CustomButton = ({
   onClick,
   className,
   disabled,
+  customAnimation,
 }: CustomButtonProps) => {
   const [isHovered, setIsHovered] = useState(false);
+
+  // Default animation - moves icon 4px to the right on hover
+  const defaultAnimation = (hovered: boolean) => ({ x: hovered ? 4 : 0 });
 
   return (
     <Button
@@ -32,7 +37,15 @@ const CustomButton = ({
       disabled={disabled}
     >
       {text}
-      <motion.div animate={{ x: isHovered ? 4 : 0 }}>{icon}</motion.div>
+      <motion.div
+        animate={
+          customAnimation
+            ? customAnimation(isHovered)
+            : defaultAnimation(isHovered)
+        }
+      >
+        {icon}
+      </motion.div>
     </Button>
   );
 };

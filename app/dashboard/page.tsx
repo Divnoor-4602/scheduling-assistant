@@ -1,7 +1,7 @@
 import React from "react";
 import OnboardingModal from "@/components/onboarding-modal/OnboardingModal";
 
-const page = async () => {
+const Page = async () => {
   return (
     <div>
       Dashboard
@@ -10,4 +10,4 @@ const page = async () => {
   );
 };
 
-export default page;
+export default Page;

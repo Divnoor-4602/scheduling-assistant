@@ -118,3 +118,21 @@ export const changeOnboardingStep = mutation({
     await ctx.db.patch(user._id, { onboardingStep: args.step });
   },
 });
+
+/**
+ * Add a phone number to the user
+ * @param phoneNumber - The phone number to add
+ */
+export const addPhoneNumber = mutation({
+  args: {
+    phoneNumber: v.string(),
+  },
+  async handler(ctx, { phoneNumber }) {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    await ctx.db.patch(user._id, { phone: phoneNumber });
+  },
+});
