@@ -6,6 +6,7 @@ import { v } from "convex/values";
 // app will continue to work.
 // The schema provides more precise TypeScript types.
 export default defineSchema({
+  // user table
   users: defineTable({
     clerkId: v.string(),
     name: v.string(),
@@ -26,4 +27,25 @@ export default defineSchema({
     onboarded: v.optional(v.boolean()),
     createdAt: v.number(),
   }).index("byClerkId", ["clerkId"]),
+
+  // project table
+  projects: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    description: v.string(),
+    // project status: active, complete, cancelled
+    status: v.union(
+      v.literal("active"),
+      v.literal("complete"),
+      v.literal("cancelled"),
+    ),
+    // when is the project due
+    deadline: v.string(),
+    mainTasks: v.array(v.string()),
+    // how many hours can the user dedicate to this project daily
+    dailyHours: v.number(),
+    // can the user work on weekends
+    weekendWork: v.boolean(),
+    createdAt: v.number(),
+  }).index("byUserId", ["userId"]),
 });

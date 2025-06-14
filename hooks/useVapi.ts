@@ -116,7 +116,9 @@ export const useVapi = (): UseVapiReturn => {
     };
   }, []);
 
-  const startCall = async () => {
+  const startCall = async (
+    variableValues?: Record<string, string | undefined>,
+  ) => {
     if (!vapiRef.current) {
       toast.error("Vapi not initialized");
       return;
@@ -133,7 +135,15 @@ export const useVapi = (): UseVapiReturn => {
     try {
       setIsLoading(true);
       setCallStatus(CALL_STATUS.LOADING);
-      await vapiRef.current.start(assistantId);
+
+      // Start call with dynamic variables if provided
+      if (variableValues) {
+        await vapiRef.current.start(assistantId, {
+          variableValues,
+        });
+      } else {
+        await vapiRef.current.start(assistantId);
+      }
     } catch (error) {
       setCallStatus(CALL_STATUS.INACTIVE);
       setIsLoading(false);

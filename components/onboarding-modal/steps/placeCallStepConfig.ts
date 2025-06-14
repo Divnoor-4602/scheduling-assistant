@@ -43,7 +43,7 @@ export const toolsConfig = [
     borderColor: "border-gray-300",
   },
   {
-    emoji: "✨",
+    emoji: "💻",
     position: { bottom: "1%", right: "25%" },
     delay: 1.4,
     bgColor: "bg-yellow-50",

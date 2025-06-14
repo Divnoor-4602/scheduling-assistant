@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { PhoneNumberSchema } from "@/lib/schema.zod";
 import { api } from "@/convex/_generated/api";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { AnimatePresence } from "motion/react";
 import { containerStyles } from "./placeCallStepConfig";
 import PhoneNumberInput from "./PhoneNumberInput";
@@ -40,6 +40,9 @@ type ViewType = "phone-input" | "talk-to-plinco";
 const PlaceCallStep = ({ currentStep }: PlaceCallStepProps) => {
   // mutation to add the phone number to the user
   const mutateAddPhoneNumber = useMutation(api.users.addPhoneNumber);
+
+  // get the user information from the database before making the call
+  const userInformation = useQuery(api.users.current);
 
   const [isLoading, setIsLoading] = useState(false);
   const [currentView, setCurrentView] = useState<ViewType>("phone-input");
@@ -115,10 +118,12 @@ const PlaceCallStep = ({ currentStep }: PlaceCallStepProps) => {
 
     // For talk-to-plinco view, show appropriate button based on call status
     const getButtonText = () => {
+      // if the call is loading or the vapi is loading, show the connecting text
       if (callStatus === CALL_STATUS.LOADING || vapiLoading)
         return "Connecting";
+      // if the call is active, show the end call text
       if (callStatus === CALL_STATUS.ACTIVE) return "End call";
-      return "Start voice call";
+      return "Start call";
     };
 
     const getButtonIcon = () => {
@@ -130,11 +135,31 @@ const PlaceCallStep = ({ currentStep }: PlaceCallStepProps) => {
       return <Phone />;
     };
 
-    const handleButtonClick = () => {
+    const handleButtonClick = async () => {
       if (callStatus === CALL_STATUS.ACTIVE) {
         endCall();
       } else if (callStatus === CALL_STATUS.INACTIVE) {
-        startCall();
+        // in case the call is inactive, start the call on button click here
+
+        // if the user information is not found, show an error
+        if (!userInformation) {
+          toast.error("User information not found");
+          return;
+        }
+
+        // Build call variables: name/email are required, phone/workHours are optional
+        const callVariables: Record<string, string | undefined> = {
+          userName: userInformation.name, // Required: set during Clerk signup
+          userEmail: userInformation.email, // Required: set during Clerk signup
+          // Only include phone if it exists (collected during onboarding)
+          ...(userInformation.phone && { userPhone: userInformation.phone }),
+          // Only include work hours if they exist (collected during onboarding)
+          ...(userInformation.workHours?.startTime && {
+            currentWorkHours: userInformation.workHours.startTime,
+          }),
+        };
+
+        startCall(callVariables);
       }
     };
 

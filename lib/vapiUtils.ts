@@ -1,5 +1,8 @@
 // Vapi Configuration and Utilities
 
+import { NextResponse } from "next/server";
+
+// FRONTEND VAPI UTILS
 export enum CALL_STATUS {
   INACTIVE = "inactive",
   ACTIVE = "active",
@@ -10,7 +13,7 @@ export interface UseVapiReturn {
   callStatus: CALL_STATUS;
   isSpeaking: boolean;
   volumeLevel: number;
-  startCall: () => void;
+  startCall: (variableValues?: Record<string, string | undefined>) => void;
   endCall: () => void;
   isLoading: boolean;
 }
@@ -102,3 +105,108 @@ export const calculateBlobScale = (
   }
   return defaultScale;
 };
+
+// API VAPI UTILS -> required to send proper responses and handle incoming tool requests
+
+// CORS Configuration
+export const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, GET, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+// CORS Handlers
+export function createCorsHandler() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: corsHeaders,
+  });
+}
+
+// Vapi API Router types
+export type TVapiToolCall = {
+  arguments: Record<string, unknown>;
+  toolCallId: string;
+  functionName: string;
+};
+
+// API Response Helpers
+export function createApiResponse(
+  data: unknown,
+  options: {
+    status?: number;
+    headers?: Record<string, string>;
+  } = {},
+) {
+  const { status = 200, headers: additionalHeaders = {} } = options;
+
+  return NextResponse.json(data, {
+    status,
+    headers: {
+      ...corsHeaders,
+      ...additionalHeaders,
+    },
+  });
+}
+
+export function createErrorResponse(
+  error: string | { error: string; [key: string]: unknown },
+  status: number = 500,
+) {
+  const errorData = typeof error === "string" ? { error } : error;
+
+  return NextResponse.json(errorData, {
+    status,
+    headers: corsHeaders,
+  });
+}
+
+// VAPI Tool Call Helpers
+export function extractVapiToolCall(body: Record<string, unknown>) {
+  const message = body?.message as Record<string, unknown> | undefined;
+  const toolCallList = message?.toolCallList as unknown[] | undefined;
+  const toolCall = toolCallList?.[0] as Record<string, unknown> | undefined;
+  const functionObj = toolCall?.function as Record<string, unknown> | undefined;
+
+  return {
+    arguments: (functionObj?.arguments as Record<string, unknown>) || {},
+    toolCallId: (toolCall?.id as string) || "",
+    functionName: (functionObj?.name as string) || "",
+  };
+}
+
+export function createVapiResponse(
+  toolCallId: string,
+  result: unknown,
+  isError: boolean = false,
+) {
+  return {
+    results: [
+      {
+        toolCallId,
+        result: isError
+          ? (result as string)
+          : {
+              type: "object",
+              object: result,
+            },
+      },
+    ],
+  };
+}
+
+export function createVapiErrorResponse(
+  toolCallId: string,
+  errorMessage: string,
+) {
+  return createVapiResponse(toolCallId, `Error: ${errorMessage}`, true);
+}
+
+// Data Conversion Helpers
+export function convertToConvexId(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  return value.trim();
+}
